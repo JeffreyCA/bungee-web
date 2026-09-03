@@ -1,0 +1,62 @@
+{
+  "name": "bungee-web",
+  "version": "0.1.0",
+  "description": "Bungee Basic time stretching for Web Audio, packaged as WebAssembly and an AudioWorklet",
+  "license": "MIT AND MPL-2.0",
+  "type": "module",
+  "repository": "github:JeffreyCA/bungee-web",
+  "homepage": "https://github.com/JeffreyCA/bungee-web#readme",
+  "bugs": "https://github.com/JeffreyCA/bungee-web/issues",
+  "keywords": [
+    "bungee",
+    "time-stretch",
+    "audio",
+    "webassembly",
+    "wasm",
+    "audioworklet",
+    "web-audio",
+    "pitch",
+    "tempo"
+  ],
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "native",
+    "scripts",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./worklet": "./dist/worklet.js",
+    "./bungee.wasm": "./dist/bungee.wasm"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build:wasm": "scripts/build-wasm.sh",
+    "build:native": "scripts/build-native.sh",
+    "build:ts": "tsc -p tsconfig.build.json && esbuild src/worklet/processor.ts --bundle --format=iife --target=es2022 --outfile=dist/worklet.js --log-level=warning",
+    "build": "npm run build:wasm && npm run build:ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "bench": "node bench/render.ts",
+    "bench:web": "vite --config bench/web/vite.config.ts"
+  },
+  "devDependencies": {
+    "@types/audioworklet": "^0.0.80",
+    "@types/node": "^26.4.1",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

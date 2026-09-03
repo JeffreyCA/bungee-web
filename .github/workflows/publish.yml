@@ -1,0 +1,35 @@
+name: Publish
+
+# Publishes the tag's version to npm through trusted publishing (OIDC): no npm token is
+# stored anywhere, and provenance is attached automatically. On npmjs.com, the package's
+# Trusted publishers setting must name this repository and this exact workflow filename
+# (publish.yml). Release with `git tag v0.1.0 && git push --tags` after bumping package.json.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      # Trusted publishing needs npm 11.5.1 or newer.
+      - run: npm install -g npm@latest && npm --version
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build:ts
+      - name: Check the tag matches package.json
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          test "v$version" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} but package.json says $version"; exit 1; }
+          test -s dist/bungee.wasm || { echo "dist/bungee.wasm is missing; run scripts/build-wasm.sh and commit dist/"; exit 1; }
+      - run: npm publish --access public

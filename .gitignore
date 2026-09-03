@@ -1,0 +1,7 @@
+node_modules/
+build/
+bench/out/
+.playwright-mcp/
+*.log
+.DS_Store
+docs/audio/

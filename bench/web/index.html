@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>bungee-web bench</title>
+    <style>
+      body { font: 14px/1.4 system-ui, sans-serif; margin: 2rem auto; max-width: 720px; padding: 0 1rem; color: #222; }
+      h1 { font-size: 1.2rem; }
+      .row { display: flex; gap: 0.75rem; align-items: center; margin: 0.5rem 0; flex-wrap: wrap; }
+      button { padding: 0.4rem 0.8rem; }
+      input[type="range"] { width: 240px; }
+      pre { background: #f4f4f4; padding: 0.75rem; overflow: auto; font-size: 12px; }
+      #status { color: #555; }
+    </style>
+  </head>
+  <body>
+    <h1>bungee-web worklet bench</h1>
+    <p id="status">Click Init to create the AudioContext and load /sample.wav.</p>
+    <div class="row">
+      <button id="init">Init</button>
+      <button id="play" disabled>Play</button>
+      <button id="pause" disabled>Pause</button>
+      <label><input type="checkbox" id="silent" /> silent (gain 0)</label>
+    </div>
+    <div class="row">
+      <label>speed <input type="range" id="speed" min="0.5" max="1.5" step="0.01" value="0.75" /> <span id="speedValue">0.75</span></label>
+    </div>
+    <div class="row">
+      <label>seek <input type="range" id="seek" min="0" max="1" step="0.001" value="0" /> <span id="seekValue">0.0 s</span></label>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="loop" /> loop</label>
+      <label>A <input type="number" id="loopA" value="3" step="0.1" style="width:5em" /> s</label>
+      <label>B <input type="number" id="loopB" value="5" step="0.1" style="width:5em" /> s</label>
+    </div>
+    <p id="position">position: -</p>
+    <pre id="stats"></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bungee-web demo</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem; color: #222; background: #fff; }
+  h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  p { margin: 0.5rem 0 1.5rem; color: #555; }
+  section { margin: 1.25rem 0; }
+  h2 { font-size: 1rem; margin: 0 0 0.35rem; font-weight: 600; }
+  audio { width: 100%; }
+  small { color: #777; }
+  a { color: inherit; }
+  @media (prefers-color-scheme: dark) { body { color: #ddd; background: #111; } p { color: #aaa; } small { color: #888; } }
+</style>
+</head>
+<body>
+<h1>bungee-web demo</h1>
+<p>A comparison of different time-stretching engines at 0.5x speed.</p>
+
+<section>
+  <h2>Original, 1.0x</h2>
+  <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/original-1.0x.mp3"></audio>
+</section>
+<section>
+  <h2>Bungee Basic, 0.5x</h2>
+  <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/bungee-0.5x.mp3"></audio>
+  <small>Rendered by this repository's wasm build through its <code>Transport</code>.</small>
+</section>
+<section>
+  <h2>Rubber Band R3, 0.5x</h2>
+  <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/rubberband-r3-0.5x.mp3"></audio>
+  <small><code>rubberband -3 --tempo 0.5</code>, version 4.0.0.</small>
+</section>
+<section>
+  <h2>ffmpeg atempo, 0.5x</h2>
+  <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/ffmpeg-atempo-0.5x.mp3"></audio>
+  <small><code>ffmpeg -af atempo=0.5</code>, a WSOLA time-domain stretch.</small>
+</section>
+
+<p><small><a href="https://github.com/JeffreyCA/bungee-web">bungee-web on GitHub</a></small></p>
+<script>
+  const players = document.querySelectorAll('audio');
+  for (const player of players) {
+    player.addEventListener('play', () => {
+      for (const other of players) if (other !== player) other.pause();
+    });
+  }
+</script>
+</body>
+</html>

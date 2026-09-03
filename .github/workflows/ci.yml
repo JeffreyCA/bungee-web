@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Install Emscripten and Ninja
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+      - run: sudo apt-get install -y ninja-build
+      # Proves the pinned Bungee revision still builds to wasm; the committed dist/
+      # stays the artifact consumers get, so this does not overwrite or compare it.
+      - run: scripts/build-wasm.sh
+      - run: npm run build:ts
+      - run: git diff --stat -- dist/index.js dist/worklet.js
