@@ -32,4 +32,4 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           test "v$version" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} but package.json says $version"; exit 1; }
           test -s dist/bungee.wasm || { echo "dist/bungee.wasm is missing; run scripts/build-wasm.sh and commit dist/"; exit 1; }
-      - run: npm publish --access public
+      - run: npm stage publish
