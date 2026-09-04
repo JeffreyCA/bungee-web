@@ -236,6 +236,7 @@ var $ = (id) => {
   return element;
 };
 var playButton = $("demo-play");
+var fileInput = $("demo-file");
 var speedInput = $("demo-speed");
 var speedOutput = $("demo-speed-output");
 var seekInput = $("demo-seek");
@@ -247,7 +248,8 @@ var context = null;
 var node = null;
 var sampleRate = 0;
 var frameCount = 0;
-var loading = null;
+var initializing = null;
+var bungeeVersion = "";
 var playing = false;
 var ended = false;
 function formatTime(seconds) {
@@ -263,9 +265,8 @@ function setPlaying(value) {
 function showError(error) {
   console.error(error);
   setPlaying(false);
-  statusElement.textContent = error instanceof Error ? `Could not start the demo: ${error.message}` : "Could not start the demo.";
+  statusElement.textContent = error instanceof Error ? `Could not load audio: ${error.message}` : "Could not load audio.";
   statusElement.classList.add("error");
-  playButton.disabled = true;
 }
 async function fetchOk(url) {
   const response = await fetch(url);
@@ -274,30 +275,19 @@ async function fetchOk(url) {
 }
 async function initialize() {
   if (node) return;
-  if (loading) return loading;
-  loading = (async () => {
-    statusElement.textContent = "Loading the sample and WebAssembly module...";
-    context = new AudioContext();
-    await context.resume();
-    const [module, sampleResponse] = await Promise.all([
+  if (initializing) return initializing;
+  initializing = (async () => {
+    statusElement.textContent = "Loading the WebAssembly module...";
+    context ??= new AudioContext();
+    const [module] = await Promise.all([
       compileBungee(fetchOk(WASM_URL)),
-      fetchOk(SAMPLE_URL),
       BungeeNode.addModule(context, WORKLET_URL)
     ]);
-    const decoded = await context.decodeAudioData(await sampleResponse.arrayBuffer());
     const readyNode = new BungeeNode(context, module);
     const ready = await readyNode.ready;
     sampleRate = context.sampleRate;
-    frameCount = decoded.length;
-    readyNode.load(frameCount, [
-      {
-        id: "sample",
-        left: decoded.getChannelData(0).slice(),
-        right: decoded.getChannelData(Math.min(1, decoded.numberOfChannels - 1)).slice()
-      }
-    ]);
+    bungeeVersion = ready.version;
     readyNode.node.connect(context.destination);
-    readyNode.setSpeed(Number(speedInput.value));
     readyNode.on("ended", () => {
       ended = true;
       setPlaying(false);
@@ -306,17 +296,42 @@ async function initialize() {
     });
     readyNode.on("error", (message) => showError(new Error(message)));
     node = readyNode;
-    seekInput.max = String(frameCount);
-    durationOutput.value = formatTime(frameCount / sampleRate);
-    seekInput.disabled = false;
-    speedInput.disabled = false;
-    statusElement.textContent = `Ready. Bungee ${ready.version} is running in an AudioWorklet.`;
   })();
   try {
-    await loading;
+    await initializing;
   } finally {
-    loading = null;
+    initializing = null;
   }
+}
+async function loadAudio(data, label) {
+  await initialize();
+  if (!context || !node) throw new Error("WebAssembly module did not initialize");
+  statusElement.classList.remove("error");
+  statusElement.textContent = `Decoding ${label}...`;
+  const decoded = await context.decodeAudioData(data);
+  if (playing) node.pause();
+  setPlaying(false);
+  frameCount = decoded.length;
+  node.load(frameCount, [
+    {
+      id: "sample",
+      left: decoded.getChannelData(0).slice(),
+      right: decoded.getChannelData(Math.min(1, decoded.numberOfChannels - 1)).slice()
+    }
+  ]);
+  node.setSpeed(Number(speedInput.value));
+  ended = false;
+  seekInput.max = String(frameCount);
+  seekInput.value = "0";
+  seekInput.disabled = false;
+  elapsedOutput.value = "0:00";
+  durationOutput.value = formatTime(frameCount / sampleRate);
+  statusElement.classList.remove("error");
+  statusElement.textContent = `${label} ready. Bungee ${bungeeVersion}.`;
+}
+async function loadDefaultSample() {
+  const response = await fetchOk(SAMPLE_URL);
+  await loadAudio(await response.arrayBuffer(), "Demo sample");
 }
 function updatePosition(position = node?.position() ?? 0) {
   const clamped = Math.min(frameCount, Math.max(0, position));
@@ -325,10 +340,12 @@ function updatePosition(position = node?.position() ?? 0) {
 }
 async function togglePlayback() {
   playButton.disabled = true;
+  fileInput.disabled = true;
   try {
-    await initialize();
-    if (!context || !node) return;
+    context ??= new AudioContext();
     await context.resume();
+    if (frameCount === 0) await loadDefaultSample();
+    if (!context || !node) return;
     if (playing) {
       node.pause();
       setPlaying(false);
@@ -344,10 +361,25 @@ async function togglePlayback() {
       statusElement.textContent = `Playing at ${Number(speedInput.value).toFixed(2)}x.`;
     }
   } finally {
-    if (!statusElement.classList.contains("error")) playButton.disabled = false;
+    playButton.disabled = false;
+    fileInput.disabled = false;
   }
 }
 playButton.addEventListener("click", () => togglePlayback().catch(showError));
+fileInput.addEventListener("change", () => {
+  const file = fileInput.files?.[0];
+  if (!file) return;
+  if (node && playing) node.pause();
+  setPlaying(false);
+  statusElement.classList.remove("error");
+  statusElement.textContent = `Reading ${file.name}...`;
+  playButton.disabled = true;
+  fileInput.disabled = true;
+  file.arrayBuffer().then((data) => loadAudio(data, file.name)).catch(showError).finally(() => {
+    playButton.disabled = false;
+    fileInput.disabled = false;
+  });
+});
 speedInput.addEventListener("input", () => {
   const speed = Number(speedInput.value);
   speedOutput.value = `${speed.toFixed(2)}x`;

@@ -12,6 +12,7 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 const playButton = $<HTMLButtonElement>('demo-play');
+const fileInput = $<HTMLInputElement>('demo-file');
 const speedInput = $<HTMLInputElement>('demo-speed');
 const speedOutput = $<HTMLOutputElement>('demo-speed-output');
 const seekInput = $<HTMLInputElement>('demo-seek');
@@ -24,7 +25,8 @@ let context: AudioContext | null = null;
 let node: BungeeNode | null = null;
 let sampleRate = 0;
 let frameCount = 0;
-let loading: Promise<void> | null = null;
+let initializing: Promise<void> | null = null;
+let bungeeVersion = '';
 let playing = false;
 let ended = false;
 
@@ -43,9 +45,8 @@ function setPlaying(value: boolean): void {
 function showError(error: unknown): void {
   console.error(error);
   setPlaying(false);
-  statusElement.textContent = error instanceof Error ? `Could not start the demo: ${error.message}` : 'Could not start the demo.';
+  statusElement.textContent = error instanceof Error ? `Could not load audio: ${error.message}` : 'Could not load audio.';
   statusElement.classList.add('error');
-  playButton.disabled = true;
 }
 
 async function fetchOk(url: string): Promise<Response> {
@@ -56,33 +57,22 @@ async function fetchOk(url: string): Promise<Response> {
 
 async function initialize(): Promise<void> {
   if (node) return;
-  if (loading) return loading;
+  if (initializing) return initializing;
 
-  loading = (async () => {
-    statusElement.textContent = 'Loading the sample and WebAssembly module...';
-    context = new AudioContext();
-    await context.resume();
+  initializing = (async () => {
+    statusElement.textContent = 'Loading the WebAssembly module...';
+    context ??= new AudioContext();
 
-    const [module, sampleResponse] = await Promise.all([
+    const [module] = await Promise.all([
       compileBungee(fetchOk(WASM_URL)),
-      fetchOk(SAMPLE_URL),
       BungeeNode.addModule(context, WORKLET_URL),
     ]);
 
-    const decoded = await context.decodeAudioData(await sampleResponse.arrayBuffer());
     const readyNode = new BungeeNode(context, module);
     const ready = await readyNode.ready;
     sampleRate = context.sampleRate;
-    frameCount = decoded.length;
-    readyNode.load(frameCount, [
-      {
-        id: 'sample',
-        left: decoded.getChannelData(0).slice(),
-        right: decoded.getChannelData(Math.min(1, decoded.numberOfChannels - 1)).slice(),
-      },
-    ]);
+    bungeeVersion = ready.version;
     readyNode.node.connect(context.destination);
-    readyNode.setSpeed(Number(speedInput.value));
     readyNode.on('ended', () => {
       ended = true;
       setPlaying(false);
@@ -91,19 +81,47 @@ async function initialize(): Promise<void> {
     });
     readyNode.on('error', (message) => showError(new Error(message)));
     node = readyNode;
-
-    seekInput.max = String(frameCount);
-    durationOutput.value = formatTime(frameCount / sampleRate);
-    seekInput.disabled = false;
-    speedInput.disabled = false;
-    statusElement.textContent = `Ready. Bungee ${ready.version} is running in an AudioWorklet.`;
   })();
 
   try {
-    await loading;
+    await initializing;
   } finally {
-    loading = null;
+    initializing = null;
   }
+}
+
+async function loadAudio(data: ArrayBuffer, label: string): Promise<void> {
+  await initialize();
+  if (!context || !node) throw new Error('WebAssembly module did not initialize');
+
+  statusElement.classList.remove('error');
+  statusElement.textContent = `Decoding ${label}...`;
+  const decoded = await context.decodeAudioData(data);
+  if (playing) node.pause();
+  setPlaying(false);
+
+  frameCount = decoded.length;
+  node.load(frameCount, [
+    {
+      id: 'sample',
+      left: decoded.getChannelData(0).slice(),
+      right: decoded.getChannelData(Math.min(1, decoded.numberOfChannels - 1)).slice(),
+    },
+  ]);
+  node.setSpeed(Number(speedInput.value));
+  ended = false;
+  seekInput.max = String(frameCount);
+  seekInput.value = '0';
+  seekInput.disabled = false;
+  elapsedOutput.value = '0:00';
+  durationOutput.value = formatTime(frameCount / sampleRate);
+  statusElement.classList.remove('error');
+  statusElement.textContent = `${label} ready. Bungee ${bungeeVersion}.`;
+}
+
+async function loadDefaultSample(): Promise<void> {
+  const response = await fetchOk(SAMPLE_URL);
+  await loadAudio(await response.arrayBuffer(), 'Demo sample');
 }
 
 function updatePosition(position = node?.position() ?? 0): void {
@@ -114,10 +132,12 @@ function updatePosition(position = node?.position() ?? 0): void {
 
 async function togglePlayback(): Promise<void> {
   playButton.disabled = true;
+  fileInput.disabled = true;
   try {
-    await initialize();
-    if (!context || !node) return;
+    context ??= new AudioContext();
     await context.resume();
+    if (frameCount === 0) await loadDefaultSample();
+    if (!context || !node) return;
 
     if (playing) {
       node.pause();
@@ -134,11 +154,31 @@ async function togglePlayback(): Promise<void> {
       statusElement.textContent = `Playing at ${Number(speedInput.value).toFixed(2)}x.`;
     }
   } finally {
-    if (!statusElement.classList.contains('error')) playButton.disabled = false;
+    playButton.disabled = false;
+    fileInput.disabled = false;
   }
 }
 
 playButton.addEventListener('click', () => togglePlayback().catch(showError));
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files?.[0];
+  if (!file) return;
+
+  if (node && playing) node.pause();
+  setPlaying(false);
+  statusElement.classList.remove('error');
+  statusElement.textContent = `Reading ${file.name}...`;
+  playButton.disabled = true;
+  fileInput.disabled = true;
+  file.arrayBuffer()
+    .then((data) => loadAudio(data, file.name))
+    .catch(showError)
+    .finally(() => {
+      playButton.disabled = false;
+      fileInput.disabled = false;
+    });
+});
 
 speedInput.addEventListener('input', () => {
   const speed = Number(speedInput.value);
