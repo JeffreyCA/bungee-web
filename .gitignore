@@ -4,4 +4,5 @@ bench/out/
 .playwright-mcp/
 *.log
 .DS_Store
-docs/audio/
+docs/audio/*
+!docs/audio/original-1.0x.mp3

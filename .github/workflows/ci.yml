@@ -25,4 +25,5 @@ jobs:
       # stays the artifact consumers get, so this does not overwrite or compare it.
       - run: scripts/build-wasm.sh
       - run: npm run build:ts
-      - run: git diff --stat -- dist/index.js dist/worklet.js
+      - run: npm run build:demo
+      - run: git diff --stat -- dist/index.js dist/worklet.js docs/demo.js docs/worklet.js docs/bungee.wasm

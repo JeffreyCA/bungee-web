@@ -2,7 +2,7 @@
 
 Use [Bungee Basic](https://github.com/bungee-audio-stretch/bungee) in the browser for variable-speed audio playback without changing pitch. The package includes a WebAssembly build of Bungee, an `AudioWorklet` processor, and TypeScript APIs for real-time and offline rendering.
 
-Listen to the [0.5x comparison](https://jeffreyca.github.io/bungee-web/) against Rubber Band R3 and ffmpeg's `atempo`.
+Try the [live WebAssembly speed demo](https://jeffreyca.github.io/bungee-web/) or listen to the 0.5x comparison against Rubber Band R3 and ffmpeg's `atempo`.
 
 ## Install
 

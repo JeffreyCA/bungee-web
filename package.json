@@ -44,7 +44,8 @@
     "build:wasm": "scripts/build-wasm.sh",
     "build:native": "scripts/build-native.sh",
     "build:ts": "tsc -p tsconfig.build.json && esbuild src/worklet/processor.ts --bundle --format=iife --target=es2022 --outfile=dist/worklet.js --log-level=warning",
-    "build": "npm run build:wasm && npm run build:ts",
+    "build:demo": "esbuild demo/main.ts --bundle --format=esm --target=es2022 --outfile=docs/demo.js --log-level=warning && cp dist/bungee.wasm dist/worklet.js docs/",
+    "build": "npm run build:wasm && npm run build:ts && npm run build:demo",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "bench": "node bench/render.ts",
     "bench:web": "vite --config bench/web/vite.config.ts"

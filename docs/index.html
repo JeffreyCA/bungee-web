@@ -3,51 +3,110 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Run Bungee Basic time stretching in the browser with WebAssembly, then compare static 0.5x renders.">
 <title>bungee-web demo</title>
 <style>
-  body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem; color: #222; background: #fff; }
-  h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
-  p { margin: 0.5rem 0 1.5rem; color: #555; }
-  section { margin: 1.25rem 0; }
-  h2 { font-size: 1rem; margin: 0 0 0.35rem; font-weight: 600; }
-  audio { width: 100%; }
-  small { color: #777; }
+  :root { color-scheme: light dark; --background: #f7f6f2; --panel: #fff; --text: #20201e; --muted: #6c6a63; --line: #d9d6cc; --accent: #155eef; --accent-hover: #004eeb; --error: #b42318; }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--text); background: var(--background); font: 16px/1.5 system-ui, sans-serif; }
+  main { width: min(46rem, calc(100% - 2rem)); margin: 0 auto; padding: 4rem 0 3rem; }
+  h1 { margin: 0; font-size: clamp(2rem, 8vw, 3.5rem); line-height: 1; letter-spacing: -0.05em; }
+  h2 { margin: 0 0 0.5rem; font-size: 1.35rem; letter-spacing: -0.02em; }
+  h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+  p { margin: 0.65rem 0; }
   a { color: inherit; }
-  @media (prefers-color-scheme: dark) { body { color: #ddd; background: #111; } p { color: #aaa; } small { color: #888; } }
+  code { font-size: 0.9em; }
+  .site-header { display: flex; gap: 1rem; align-items: baseline; justify-content: space-between; }
+  .source-link { color: var(--muted); white-space: nowrap; }
+  .intro { max-width: 37rem; margin: 1rem 0 2rem; color: var(--muted); font-size: 1.05rem; }
+  .demo { padding: clamp(1.25rem, 5vw, 2rem); border: 1px solid var(--line); border-radius: 1rem; background: var(--panel); box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.05); }
+  .status, small { color: var(--muted); }
+  .transport { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: center; margin: 1.5rem 0; }
+  button { min-width: 5.5rem; padding: 0.65rem 1rem; border: 0; border-radius: 999px; color: white; background: var(--accent); font: inherit; font-weight: 650; cursor: pointer; }
+  button:hover { background: var(--accent-hover); }
+  button:disabled { cursor: wait; opacity: 0.65; }
+  .timeline { display: grid; grid-template-columns: 3.2rem 1fr 3.2rem; gap: 0.65rem; align-items: center; font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+  input[type="range"]:disabled { cursor: wait; opacity: 0.6; }
+  .speed-control { display: grid; grid-template-columns: auto 1fr 4rem; gap: 0.8rem; align-items: center; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  .speed-control label { font-weight: 650; }
+  output { font-variant-numeric: tabular-nums; }
+  .status { min-height: 1.5em; margin: 1rem 0 0; font-size: 0.9rem; }
+  .status.error { color: var(--error); }
+  .static-samples { margin-top: 3.5rem; }
+  .static-sample { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  audio { width: 100%; margin-top: 0.25rem; }
+  @media (max-width: 34rem) {
+    main { padding-top: 2.5rem; }
+    .site-header { align-items: flex-start; flex-direction: column; gap: 0.75rem; }
+    .transport { grid-template-columns: 1fr; }
+    button { width: 100%; }
+    .timeline { grid-template-columns: 2.75rem 1fr 2.75rem; gap: 0.4rem; font-size: 0.875rem; }
+    .speed-control { grid-template-columns: 1fr auto; }
+    .speed-control input { grid-column: 1 / -1; grid-row: 2; }
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --background: #11110f; --panel: #1b1b18; --text: #f0efe9; --muted: #aaa89e; --line: #3b3a34; --accent: #6ea0ff; --accent-hover: #8bb3ff; --error: #ff8a80; }
+    button { color: #07152f; }
+    .demo { box-shadow: none; }
+  }
 </style>
 </head>
 <body>
-<h1>bungee-web demo</h1>
-<p>A comparison of different time-stretching engines at 0.5x speed.</p>
+<main>
+  <header>
+    <div class="site-header">
+      <h1>bungee-web</h1>
+      <a class="source-link" href="https://github.com/JeffreyCA/bungee-web">GitHub source</a>
+    </div>
+    <p class="intro">This player runs <a href="https://github.com/bungee-audio-stretch/bungee">Bungee Basic</a> (a high-quality audio time-stretching and pitch-shifting library) in your browser through WebAssembly and an AudioWorklet.</p>
+  </header>
 
-<section>
-  <h2>Original, 1.0x</h2>
-  <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/original-1.0x.mp3"></audio>
-</section>
-<section>
-  <h2>Bungee Basic, 0.5x</h2>
-  <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/bungee-0.5x.mp3"></audio>
-  <small>Rendered by this repository's wasm build through its <code>Transport</code>.</small>
-</section>
-<section>
-  <h2>Rubber Band R3, 0.5x</h2>
-  <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/rubberband-r3-0.5x.mp3"></audio>
-  <small><code>rubberband -3 --tempo 0.5</code>, version 4.0.0.</small>
-</section>
-<section>
-  <h2>ffmpeg atempo, 0.5x</h2>
-  <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/ffmpeg-atempo-0.5x.mp3"></audio>
-  <small><code>ffmpeg -af atempo=0.5</code>, a WSOLA time-domain stretch.</small>
-</section>
+  <section class="demo" aria-labelledby="live-demo-heading">
+    <h2 id="live-demo-heading">WebAssembly speed demo</h2>
 
-<p><small><a href="https://github.com/JeffreyCA/bungee-web">bungee-web on GitHub</a></small></p>
-<script>
-  const players = document.querySelectorAll('audio');
-  for (const player of players) {
-    player.addEventListener('play', () => {
-      for (const other of players) if (other !== player) other.pause();
-    });
-  }
-</script>
+    <div class="transport">
+      <button id="demo-play" type="button">Play</button>
+      <div class="timeline">
+        <output id="demo-elapsed" for="demo-seek">0:00</output>
+        <input id="demo-seek" type="range" min="0" max="1" step="1" value="0" aria-label="Playback position" disabled>
+        <output id="demo-duration" for="demo-seek">0:15</output>
+      </div>
+    </div>
+
+    <div class="speed-control">
+      <label for="demo-speed">Speed</label>
+      <input id="demo-speed" type="range" min="0.5" max="2" step="0.01" value="1">
+      <output id="demo-speed-output" for="demo-speed">1.00x</output>
+    </div>
+    <p id="demo-status" class="status" role="status">Press Play to load the sample and WebAssembly module.</p>
+  </section>
+
+  <section class="static-samples" aria-labelledby="static-heading">
+    <h2 id="static-heading">Static comparison</h2>
+
+    <article class="static-sample">
+      <h3>Original, 1.0x</h3>
+      <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/original-1.0x.mp3"></audio>
+    </article>
+    <article class="static-sample">
+      <h3>Bungee Basic, 0.5x</h3>
+      <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/bungee-0.5x.mp3"></audio>
+      <small>Rendered by this repository's WebAssembly build through its <code>Transport</code>.</small>
+    </article>
+    <article class="static-sample">
+      <h3>Rubber Band R3, 0.5x</h3>
+      <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/rubberband-r3-0.5x.mp3"></audio>
+      <small><code>rubberband -3 --tempo 0.5</code>, version 4.0.0.</small>
+    </article>
+    <article class="static-sample">
+      <h3>ffmpeg atempo, 0.5x</h3>
+      <audio controls preload="metadata" src="https://pub-8ecf137de8da4488b02ef83ba7d05c9f.r2.dev/ffmpeg-atempo-0.5x.mp3"></audio>
+      <small><code>ffmpeg -af atempo=0.5</code>, a WSOLA time-domain stretch.</small>
+    </article>
+  </section>
+
+</main>
+<script type="module" src="./demo.js"></script>
 </body>
 </html>
