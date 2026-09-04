@@ -1,6 +1,6 @@
 {
   "name": "bungee-web",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Bungee Basic time stretching for Web Audio, packaged as WebAssembly and an AudioWorklet",
   "license": "MIT AND MPL-2.0",
   "type": "module",
